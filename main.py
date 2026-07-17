@@ -150,6 +150,75 @@ def load_config():
     return config
 
 
+def save_config_token(token):
+    """Lưu token mới vào config.txt, giữ nguyên các dòng khác"""
+    lines = []
+    try:
+        with open("config.txt", "r", encoding="utf-8") as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        pass
+
+    found = False
+    new_lines = []
+    for line in lines:
+        if line.strip().startswith("token="):
+            new_lines.append(f"token={token}\n")
+            found = True
+        else:
+            new_lines.append(line)
+    if not found:
+        new_lines.insert(0, f"token={token}\n")
+
+    with open("config.txt", "w", encoding="utf-8") as f:
+        f.writelines(new_lines)
+
+
+def select_token_menu(config):
+    """Hiển thị menu chọn token: load previous hoặc set new"""
+    previous_token = config.get("token", "").strip()
+    has_previous = bool(previous_token)
+
+    print("=" * 50)
+    print("       Super Self Bot - Token Selection")
+    print("=" * 50)
+    if has_previous:
+        masked = previous_token[:10] + "..." + previous_token[-10:] if len(previous_token) > 20 else previous_token[:10] + "..."
+        print(f"  [1] Load previous token ({masked})")
+    else:
+        print("  [1] Load previous token (none saved)")
+    print("  [2] Set new token")
+    print("=" * 50)
+
+    while True:
+        choice = input("Select option [1/2]: ").strip()
+        if choice == "1":
+            if not has_previous:
+                print("[!] No previous token found. Please select option 2.")
+                continue
+            token = previous_token
+            account_name, user_id = check_token(token)
+            if not account_name:
+                print("[!] Previous token is invalid!")
+                continue
+            print(f"[+] Loaded previous token | {account_name}")
+            return token, account_name, user_id
+        elif choice == "2":
+            token = input("Enter Discord Token: ").strip()
+            if not token:
+                print("[!] Token cannot be empty!")
+                continue
+            account_name, user_id = check_token(token)
+            if not account_name:
+                print("[!] Invalid Token!")
+                continue
+            save_config_token(token)
+            print(f"[+] Token saved | {account_name}")
+            return token, account_name, user_id
+        else:
+            print("[!] Invalid option. Please choose 1 or 2.")
+
+
 def load_custom_statuses():
     try:
         with open("customstatus.txt", "r", encoding="utf-8") as f:
@@ -457,7 +526,8 @@ def nuke_server(token, guild_id, ad_invite):
 class DiscordGateway:
     def __init__(self, token, user_id, activity=None, stream_config=None, app_id=None,
                  auto_change_stream=False, asset_cache=None, start_time=None,
-                 auto_join_voice=False, guild_id=None, voice_channel_id=None):
+                 auto_join_voice=False, guild_id=None, voice_channel_id=None,
+                 fakelive=False):
         self.token = token
         self.user_id = user_id
         self.activity = activity
@@ -483,6 +553,8 @@ class DiscordGateway:
         self.auto_join_voice = auto_join_voice
         self.auto_guild_id = guild_id
         self.auto_channel_id = voice_channel_id
+        # Fake live config
+        self.fakelive = fakelive
 
     def start(self):
         t = threading.Thread(target=self._run, daemon=True)
@@ -584,6 +656,9 @@ class DiscordGateway:
             time.sleep(2)  # Đợi gateway ổn định
             if self.join_voice(self.auto_guild_id, self.auto_channel_id):
                 print(f"[+] Auto joined voice: {self.auto_channel_id}")
+                # Chỉ fake live nếu fakelive=True
+                if self.fakelive:
+                    self.start_fake_live(self.auto_guild_id, self.auto_channel_id)
         except Exception as e:
             print(f"[!] Auto join voice failed: {e}")
 
@@ -663,18 +738,18 @@ class DiscordGateway:
                 t.start()
 
         if event == "VOICE_STATE_UPDATE":
-    if d.get("user_id") == self.user_id:
-        # Xóa đoạn này:
-        # if d.get("channel_id") and self.pending_live:
-        #     guild_id = self.pending_live["guild_id"]
-        #     channel_id = self.pending_live["channel_id"]
-        #     self.pending_live = None
-        #     self.start_fake_live(guild_id, channel_id)
-        
-        if not d.get("channel_id") and self.current_voice:
-            print("[*] Left voice channel.")
-            self.current_voice = None
-            self.pending_live = None            
+            if d.get("user_id") == self.user_id:
+                if d.get("channel_id") and self.pending_live:
+                    guild_id = self.pending_live["guild_id"]
+                    channel_id = self.pending_live["channel_id"]
+                    self.pending_live = None
+                    # Chỉ fake live nếu fakelive=True
+                    if self.fakelive:
+                        self.start_fake_live(guild_id, channel_id)
+                if not d.get("channel_id") and self.current_voice:
+                    print("[*] Left voice channel.")
+                    self.current_voice = None
+                    self.pending_live = None            
 
         if event == "MESSAGE_CREATE":
             author = d.get("author", {})
@@ -803,16 +878,8 @@ def custom_status_loop(token, custom_texts):
 def main():
     config = load_config()
 
-    # Hỏi token thay vì đọc từ file
-    token = input("Nhập Discord Token: ").strip()
-    if not token:
-        print("Token không được để trống!")
-        return
-
-    account_name, user_id = check_token(token)
-    if not account_name:
-        print("Invalid Token!")
-        return
+    # Menu chọn token: load previous hoặc set new
+    token, account_name, user_id = select_token_menu(config)
 
     auto_custom = config.get("autochangecustomstatus", "False").lower() == "true"
     stream_enabled = config.get("stream", "False").lower() == "true"
@@ -822,6 +889,8 @@ def main():
     auto_join_voice = config.get("auto_join_voice", "False").lower() == "true"
     guild_id = config.get("guild_id", "")
     voice_channel_id = config.get("voice_channel_id", "")
+    # Fake live config
+    fakelive = config.get("fakelive", "False").lower() == "true"
 
     custom_texts = []
     if auto_custom:
@@ -862,6 +931,10 @@ def main():
         print(f"[*] Loaded 2 image")
     if auto_join_voice:
         print(f"[*] Auto join voice enabled: {voice_channel_id}")
+    if fakelive:
+        print(f"[*] Fake live enabled")
+    else:
+        print(f"[*] Fake live disabled")
 
     gateway = DiscordGateway(
         token, user_id, activity,
@@ -872,7 +945,8 @@ def main():
         start_time=start_time,
         auto_join_voice=auto_join_voice,
         guild_id=guild_id,
-        voice_channel_id=voice_channel_id
+        voice_channel_id=voice_channel_id,
+        fakelive=fakelive
     )
     gateway.start()
 
