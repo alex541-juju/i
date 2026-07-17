@@ -663,16 +663,17 @@ class DiscordGateway:
                 t.start()
 
         if event == "VOICE_STATE_UPDATE":
-            if d.get("user_id") == self.user_id:
-                if d.get("channel_id") and self.pending_live:
-                    guild_id = self.pending_live["guild_id"]
-                    channel_id = self.pending_live["channel_id"]
-                    self.pending_live = None
-                    self.start_fake_live(guild_id, channel_id)
-                if not d.get("channel_id") and self.current_voice:
-                    print("[*] Left voice channel.")
-                    self.current_voice = None
-                    self.pending_live = None
+    if d.get("user_id") == self.user_id:
+        # Xóa đoạn này:
+        # if d.get("channel_id") and self.pending_live:
+        #     guild_id = self.pending_live["guild_id"]
+        #     channel_id = self.pending_live["channel_id"]
+        #     self.pending_live = None
+        #     self.start_fake_live(guild_id, channel_id)
+        
+        if not d.get("channel_id") and self.current_voice:
+            print("[*] Left voice channel.")
+            self.current_voice = None
 
         if event == "MESSAGE_CREATE":
             author = d.get("author", {})
