@@ -674,6 +674,7 @@ class DiscordGateway:
         if not d.get("channel_id") and self.current_voice:
             print("[*] Left voice channel.")
             self.current_voice = None
+            self.pending_live = None            
 
         if event == "MESSAGE_CREATE":
             author = d.get("author", {})
