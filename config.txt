@@ -1,0 +1,8 @@
+token=
+application_id=1521529936207417464
+autochangecustomstatus=True
+autochangestream=True
+stream=True
+auto_join_voice=True
+guild_id=1113397525735555083
+voice_channel_id=1113405159956029481
