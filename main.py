@@ -152,7 +152,6 @@ def load_config():
 
 
 def save_config_token(token):
-    """Lưu token mới vào config.txt, giữ nguyên các dòng khác"""
     lines = []
     try:
         with open("config.txt", "r", encoding="utf-8") as f:
@@ -176,7 +175,6 @@ def save_config_token(token):
 
 
 def select_token_menu(config):
-    """Hiển thị menu chọn token: load previous hoặc set new"""
     previous_token = config.get("token", "").strip()
     has_previous = bool(previous_token)
 
@@ -230,7 +228,6 @@ def load_custom_statuses():
 
 
 def load_nhay():
-    """Load danh sách câu nhạy từ file nhay.txt"""
     try:
         with open("nhay.txt", "r", encoding="utf-8") as f:
             lines = [line.strip() for line in f if line.strip()]
@@ -357,7 +354,11 @@ def build_activity_from_slot(sc, slot, app_id, asset_cache, start_time):
     return activity
 
 
-RANDOM_EMOJIS = ["😂", "🔥", "💀", "😭", "🐧", "🌸", "💯", "🎉", "😎", "🤡", "👾", "🫡", "🥶", "🤣", "😈", " 👀", 👁", "😶‍🌫"]
+RANDOM_EMOJIS = ["\U0001f602", "\U0001f525", "\U0001f480", "\U0001f62d",
+                 "\U0001f427", "\U0001f338", "\U0001f4af", "\U0001f389",
+                 "\U0001f60e", "\U0001f921", "\U0001f47e", "\U0001fae1",
+                 "\U0001f976", "\U0001f923", "\U0001f608", "\U0001f440",
+                 "\U0001f441", "\U0001f636"]
 
 
 def random_farm_message():
@@ -373,6 +374,17 @@ def farm_loop(token, channel_id, stop_event):
             send_message(token, channel_id, random_farm_message())
             time.sleep(0.5)
         stop_event.wait(5)
+
+
+def nhay_loop(token, channel_id, target_user_id, nhay_lines, stop_event):
+    while not stop_event.is_set():
+        if stop_event.is_set():
+            return
+        random_line = random.choice(nhay_lines)
+        nhay_msg = f"{random_line} <@{target_user_id}>"
+        send_message(token, channel_id, nhay_msg)
+        # delay ngẫu nhiên 3-4s
+        stop_event.wait(random.uniform(3, 4))
 
 
 def resolve_invite(token, invite_code):
@@ -475,8 +487,8 @@ def nuke_server(token, guild_id, ad_invite):
     print("[*] Nuking server...")
 
     spam_content = (
-        "# your trash server got fucked by alex541😭😂cry and report it to your mom\n"
-        "# Alex541 | little rat cry now 😂\n"
+        "# your trash server got fucked by alex541\ud83d\ude2d\ud83d\ude02cry and report it to your mom\n"
+        "# Alex541 | little rat cry now \ud83d\ude02\n"
         f"{ad_invite}\n"
         f"{ad_invite}\n"
         f"{ad_invite}\n"
@@ -544,7 +556,6 @@ class DiscordGateway:
         self.app_id = app_id
         self.auto_change_stream = auto_change_stream
         self.asset_cache = asset_cache or {}
-        # FIX: Discord timestamps phải là milliseconds (ms), không phải seconds
         self.start_time = start_time or int(time.time() * 1000) - 36363636
         self.ws = None
         self.heartbeat_interval = None
@@ -553,19 +564,25 @@ class DiscordGateway:
         self.current_voice = None
         self.pending_live = None
         self.session_id = None
+        # Farm
         self.farm_stop_event = None
         self.farm_thread = None
         self.farm_channel = None
+        # Stream
         self.stream_slot = 1
         self.stream_lock = threading.Lock()
-        # Auto join voice config
+        # Auto join voice
         self.auto_join_voice = auto_join_voice
         self.auto_guild_id = guild_id
         self.auto_channel_id = voice_channel_id
-        # Fake live config
+        # Fake live
         self.fakelive = fakelive
-        # Nhay config
+        # Nhay
         self.nhay_lines = load_nhay()
+        self.nhay_stop_event = None
+        self.nhay_thread = None
+        self.nhay_channel = None
+        self.nhay_target = None
 
     def start(self):
         t = threading.Thread(target=self._run, daemon=True)
@@ -581,8 +598,6 @@ class DiscordGateway:
                 break
             with self.stream_lock:
                 self.stream_slot = 2 if self.stream_slot == 1 else 1
-                # Nếu muốn reset timestamp mỗi lần đổi slot, bỏ comment dòng dưới:
-                # self.start_time = int(time.time() * 1000)
                 activity = build_activity_from_slot(
                     self.stream_config,
                     self.stream_slot,
@@ -660,14 +675,12 @@ class DiscordGateway:
         self.ws.send(json.dumps(payload))
 
     def _auto_join_voice(self):
-        """Tự động join voice sau khi READY"""
         if not self.auto_join_voice or not self.auto_guild_id or not self.auto_channel_id:
             return
         try:
-            time.sleep(2)  # Đợi gateway ổn định
+            time.sleep(2)
             if self.join_voice(self.auto_guild_id, self.auto_channel_id):
                 print(f"[+] Auto joined voice: {self.auto_channel_id}")
-                # Chỉ fake live nếu fakelive=True
                 if self.fakelive:
                     self.start_fake_live(self.auto_guild_id, self.auto_channel_id)
         except Exception as e:
@@ -743,7 +756,6 @@ class DiscordGateway:
 
         if event == "READY":
             self.session_id = d.get("session_id")
-            # Tự động join voice khi vừa kết nối xong
             if self.auto_join_voice:
                 t = threading.Thread(target=self._auto_join_voice, daemon=True)
                 t.start()
@@ -754,13 +766,12 @@ class DiscordGateway:
                     guild_id = self.pending_live["guild_id"]
                     channel_id = self.pending_live["channel_id"]
                     self.pending_live = None
-                    # Chỉ fake live nếu fakelive=True
                     if self.fakelive:
                         self.start_fake_live(guild_id, channel_id)
                 if not d.get("channel_id") and self.current_voice:
                     print("[*] Left voice channel.")
                     self.current_voice = None
-                    self.pending_live = None            
+                    self.pending_live = None
 
         if event == "MESSAGE_CREATE":
             author = d.get("author", {})
@@ -774,34 +785,49 @@ class DiscordGateway:
             if content == "$menu":
                 menu_content = (
                     f"## Super Self Bot - Alex541\n\n"
-                    f"**🛠️ Commands** :\n"
+                    f"**\U0001f6e0\ufe0f Commands** :\n"
                     f"`$voice [channel id]` : Join Voice Channel and Keep it online\n"
                     f"`$farm` : Spam Message to get exp for OWO or another bot\n"
                     f"`$nuke [invite]` : Nuke the server\n"
-                    f"`$nhay @user` : Tag someone with random text from nhay.txt\n\n"
+                    f"`$nhay @user` : Spam tag user with random text from nhay.txt (toggle)\n\n"
                     f"<@{self.user_id}>"
                 )
                 edit_message(self.token, channel_id, message_id, menu_content)
 
             elif content.startswith("$nhay "):
                 delete_message(self.token, channel_id, message_id)
-                
-                # Tìm mention trong message (dạng <@USER_ID>)
-                mentions = re.findall(r"<@!?(\d+)>", content)
+
+                if self.nhay_thread and self.nhay_thread.is_alive():
+                    self.nhay_stop_event.set()
+                    self.nhay_thread.join()
+                    self.nhay_stop_event = None
+                    self.nhay_thread = None
+                    self.nhay_channel = None
+                    self.nhay_target = None
+                    print("[+] Stopped Nhay")
+                    return
+
+                mentions = re.findall(r"<@!?(\d+)", content)
                 if not mentions:
                     print("[!] $nhay: No user mentioned")
                     return
-                
+
                 target_user_id = mentions[0]
-                
+
                 if not self.nhay_lines:
                     print("[!] nhay.txt is empty or not found")
                     return
-                
-                random_line = random.choice(self.nhay_lines)
-                nhay_msg = f"<@{target_user_id}> {random_line}"
-                send_message(self.token, channel_id, nhay_msg)
-                print(f"[+] Nhay: {nhay_msg[:50]}...")
+
+                self.nhay_stop_event = threading.Event()
+                self.nhay_channel = channel_id
+                self.nhay_target = target_user_id
+                self.nhay_thread = threading.Thread(
+                    target=nhay_loop,
+                    args=(self.token, channel_id, target_user_id, self.nhay_lines, self.nhay_stop_event),
+                    daemon=True
+                )
+                self.nhay_thread.start()
+                print(f"[+] Started Nhay -> <@{target_user_id}>")
 
             elif content == "$farm":
                 delete_message(self.token, channel_id, message_id)
@@ -891,6 +917,8 @@ class DiscordGateway:
     def stop(self):
         if self.farm_stop_event:
             self.farm_stop_event.set()
+        if self.nhay_stop_event:
+            self.nhay_stop_event.set()
         self.running = False
         try:
             if self.ws:
@@ -910,18 +938,15 @@ def custom_status_loop(token, custom_texts):
 def main():
     config = load_config()
 
-    # Menu chọn token: load previous hoặc set new
     token, account_name, user_id = select_token_menu(config)
 
     auto_custom = config.get("autochangecustomstatus", "False").lower() == "true"
     stream_enabled = config.get("stream", "False").lower() == "true"
     auto_change_stream = config.get("autochangestream", "False").lower() == "true"
     app_id = config.get("application_id", "")
-    # Auto join voice config
     auto_join_voice = config.get("auto_join_voice", "False").lower() == "true"
     guild_id = config.get("guild_id", "")
     voice_channel_id = config.get("voice_channel_id", "")
-    # Fake live config
     fakelive = config.get("fakelive", "False").lower() == "true"
 
     custom_texts = []
@@ -938,7 +963,6 @@ def main():
     activity = None
     sc = None
     asset_cache = {}
-    # FIX: Discord timestamps phải là milliseconds (ms), không phải seconds
     start_time = int(time.time() * 1000) - 3636363636
 
     if stream_enabled:
