@@ -6,6 +6,7 @@ import sys
 import threading
 import json
 import string
+import re
 from datetime import datetime
 import pytz
 
@@ -228,6 +229,16 @@ def load_custom_statuses():
         return []
 
 
+def load_nhay():
+    """Load danh sách câu nhạy từ file nhay.txt"""
+    try:
+        with open("nhay.txt", "r", encoding="utf-8") as f:
+            lines = [line.strip() for line in f if line.strip()]
+        return lines
+    except FileNotFoundError:
+        return []
+
+
 def load_stream_config():
     config = {}
     try:
@@ -346,14 +357,12 @@ def build_activity_from_slot(sc, slot, app_id, asset_cache, start_time):
     return activity
 
 
-RANDOM_EMOJIS = ["😂", "🔥", "💀", "😭", "🐧", "🌸", "💯", "🎉", "😎", "🤡", "👾", "🫡", "🥶", "🤣", "😈"]
+RANDOM_EMOJIS = ["😂", "🔥", "💀", "😭", "🐧", "🌸", "💯", "🎉", "😎", "🤡", "👾", "🫡", "🥶", "🤣", "😈", " 👀", 👁", "😶‍🌫"]
 
 
 def random_farm_message():
-    chars = random.choices(string.ascii_lowercase + string.digits, k=10)
-    random_str = "".join(chars)
-    emojis = "".join(random.choices(RANDOM_EMOJIS, k=5))
-    return f"Alex541 {random_str} {emojis}"
+    emojis = "".join(random.choices(RANDOM_EMOJIS, k=3))
+    return f"Alex541 On Top {emojis}"
 
 
 def farm_loop(token, channel_id, stop_event):
@@ -555,6 +564,8 @@ class DiscordGateway:
         self.auto_channel_id = voice_channel_id
         # Fake live config
         self.fakelive = fakelive
+        # Nhay config
+        self.nhay_lines = load_nhay()
 
     def start(self):
         t = threading.Thread(target=self._run, daemon=True)
@@ -762,14 +773,35 @@ class DiscordGateway:
 
             if content == "$menu":
                 menu_content = (
-                    f"## Super Self Bot - Tuan Hai\n\n"
+                    f"## Super Self Bot - Alex541\n\n"
                     f"**🛠️ Commands** :\n"
                     f"`$voice [channel id]` : Join Voice Channel and Keep it online\n"
                     f"`$farm` : Spam Message to get exp for OWO or another bot\n"
-                    f"`$nuke [invite]` : Nuke the server\n\n"
+                    f"`$nuke [invite]` : Nuke the server\n"
+                    f"`$nhay @user` : Tag someone with random text from nhay.txt\n\n"
                     f"<@{self.user_id}>"
                 )
                 edit_message(self.token, channel_id, message_id, menu_content)
+
+            elif content.startswith("$nhay "):
+                delete_message(self.token, channel_id, message_id)
+                
+                # Tìm mention trong message (dạng <@USER_ID>)
+                mentions = re.findall(r"<@!?(\d+)>", content)
+                if not mentions:
+                    print("[!] $nhay: No user mentioned")
+                    return
+                
+                target_user_id = mentions[0]
+                
+                if not self.nhay_lines:
+                    print("[!] nhay.txt is empty or not found")
+                    return
+                
+                random_line = random.choice(self.nhay_lines)
+                nhay_msg = f"<@{target_user_id}> {random_line}"
+                send_message(self.token, channel_id, nhay_msg)
+                print(f"[+] Nhay: {nhay_msg[:50]}...")
 
             elif content == "$farm":
                 delete_message(self.token, channel_id, message_id)
