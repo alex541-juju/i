@@ -376,15 +376,16 @@ def farm_loop(token, channel_id, stop_event):
         stop_event.wait(5)
 
 
-def nhay_loop(token, channel_id, target_user_id, nhay_lines, stop_event):
+def nhay_loop(token, channel_id, target_user_ids, nhay_lines, stop_event):
     while not stop_event.is_set():
         if stop_event.is_set():
             return
         random_line = random.choice(nhay_lines)
-        nhay_msg = f"{random_line} <@{target_user_id}>"
+        mentions = " ".join([f"<@{uid}>" for uid in target_user_ids])
+        nhay_msg = f"{random_line} {mentions}"
         send_message(token, channel_id, nhay_msg)
         # delay ngẫu nhiên 3-4s
-        stop_event.wait(random.uniform(3, 4))
+        stop_event.wait(random.uniform(1, 2))
 
 
 def resolve_invite(token, invite_code):
@@ -582,7 +583,7 @@ class DiscordGateway:
         self.nhay_stop_event = None
         self.nhay_thread = None
         self.nhay_channel = None
-        self.nhay_target = None
+        self.nhay_targets = []
 
     def start(self):
         t = threading.Thread(target=self._run, daemon=True)
@@ -789,12 +790,12 @@ class DiscordGateway:
                     f"`$voice [channel id]` : Join Voice Channel and Keep it online\n"
                     f"`$farm` : Spam Message to get exp for OWO or another bot\n"
                     f"`$nuke [invite]` : Nuke the server\n"
-                    f"`$nhay @user` : Spam tag user with random text from nhay.txt (toggle)\n\n"
+                    f"`$nhay @user1 @user2 ...` : Spam tag multi users with random text from nhay.txt (toggle)\n\n"
                     f"<@{self.user_id}>"
                 )
                 edit_message(self.token, channel_id, message_id, menu_content)
 
-            elif content.startswith("$nhay "):
+            elif content == "$nhay" or content.startswith("$nhay "):
                 delete_message(self.token, channel_id, message_id)
 
                 if self.nhay_thread and self.nhay_thread.is_alive():
@@ -803,7 +804,7 @@ class DiscordGateway:
                     self.nhay_stop_event = None
                     self.nhay_thread = None
                     self.nhay_channel = None
-                    self.nhay_target = None
+                    self.nhay_targets = []
                     print("[+] Stopped Nhay")
                     return
 
@@ -812,22 +813,21 @@ class DiscordGateway:
                     print("[!] $nhay: No user mentioned")
                     return
 
-                target_user_id = mentions[0]
-
                 if not self.nhay_lines:
                     print("[!] nhay.txt is empty or not found")
                     return
 
                 self.nhay_stop_event = threading.Event()
                 self.nhay_channel = channel_id
-                self.nhay_target = target_user_id
+                self.nhay_targets = mentions
                 self.nhay_thread = threading.Thread(
                     target=nhay_loop,
-                    args=(self.token, channel_id, target_user_id, self.nhay_lines, self.nhay_stop_event),
+                    args=(self.token, channel_id, mentions, self.nhay_lines, self.nhay_stop_event),
                     daemon=True
                 )
                 self.nhay_thread.start()
-                print(f"[+] Started Nhay -> <@{target_user_id}>")
+                targets_str = " ".join([f"<@{uid}>" for uid in mentions])
+                print(f"[+] Started Nhay -> {targets_str}")
 
             elif content == "$farm":
                 delete_message(self.token, channel_id, message_id)
