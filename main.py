@@ -327,7 +327,7 @@ def build_activity_from_slot(sc, slot, app_id, asset_cache, start_time):
 
     activity = {
         "type": 3,
-        "name": "Cosplayer",
+        "name": "Alone",
         "url": "https://www.twitch.tv/lucas_the_vampire",
         "timestamps": {"start": start_time},
         "buttons": [btn1_label, btn2_label],

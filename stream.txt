@@ -1,6 +1,6 @@
-image_url=https://raw.githubusercontent.com/alex541-juju/alex541-juju.github.io/refs/heads/main/Screenshot_20260712_164042.jpg
+image_url=https://raw.githubusercontent.com/alex541-juju/dds/refs/heads/main/file_00000000978081faac53a63c798b6ad9.png
 line1=Alex541 ♡ しはいんお
-line2=Vietnamese nhưng chơi như Mỹ
+line2=Vietnamese
 line3=my profile
 line1_2=| {time} </✦\> {date} |
 line2_2=Vietnam Time
@@ -9,7 +9,7 @@ button1_label=Github
 button1_url=https://alex541-juju.github.io/
 button2_label=Song In Spotify I Liked
 button2_url=https://open.spotify.com/track/1OhrPb6EiqogGjtP1t1uUF?si=OIYgAOcgS8GAv6J4Nbhimg&utm_source=copy-link
-button1_label_2=My Server
-button1_url_2=https://discord.gg/8Avgt9BSH
+button1_label_2=Profile
+button1_url_2=https://eboy.asia/alex541
 button2_label_2=Song In Spotify I Liked
 button2_url_2=https://open.spotify.com/track/1OhrPb6EiqogGjtP1t1uUF?si=OIYgAOcgS8GAv6J4Nbhimg&utm_source=copy-link
