@@ -327,7 +327,7 @@ def build_activity_from_slot(sc, slot, app_id, asset_cache, start_time):
 
     activity = {
         "type": 3,
-        "name": "Alone",
+        "name": "Alex541",
         "url": "https://www.twitch.tv/lucas_the_vampire",
         "timestamps": {"start": start_time},
         "buttons": [btn1_label, btn2_label],
@@ -557,7 +557,7 @@ class DiscordGateway:
         self.app_id = app_id
         self.auto_change_stream = auto_change_stream
         self.asset_cache = asset_cache or {}
-        self.start_time = start_time or int(time.time() * 1000) - 36363636
+        self.start_time = start_time or int(time.time() * 1000) - 6736363636
         self.ws = None
         self.heartbeat_interval = None
         self.sequence = None
@@ -682,8 +682,8 @@ class DiscordGateway:
             time.sleep(2)
             if self.join_voice(self.auto_guild_id, self.auto_channel_id):
                 print(f"[+] Auto joined voice: {self.auto_channel_id}")
-                if self.fakelive:
-                    self.start_fake_live(self.auto_guild_id, self.auto_channel_id)
+                # fakelive se duoc bat trong VOICE_STATE_UPDATE sau khi
+                # Discord xac nhan da vao voice (tranh gui packet qua som)
         except Exception as e:
             print(f"[!] Auto join voice failed: {e}")
 
@@ -706,21 +706,14 @@ class DiscordGateway:
             self.pending_live = None
             return False
 
+    def _delayed_fake_live(self, guild_id, channel_id):
+        # doi voice connection on dinh roi moi bat live
+        time.sleep(1.5)
+        self.start_fake_live(guild_id, channel_id)
+
     def start_fake_live(self, guild_id, channel_id):
         try:
-            payload = {
-                "op": 4,
-                "d": {
-                    "guild_id": guild_id,
-                    "channel_id": channel_id,
-                    "self_mute": True,
-                    "self_deaf": True,
-                    "self_stream": False,
-                    "self_video": False
-                }
-            }
-            self.ws.send(json.dumps(payload))
-
+            # Buoc 1: tao stream session (giong client that)
             stream_payload = {
                 "op": 18,
                 "d": {
@@ -734,18 +727,20 @@ class DiscordGateway:
 
             time.sleep(0.5)
 
-            video_payload = {
+            # Buoc 2: bat self_stream=True de hien badge LIVE
+            live_payload = {
                 "op": 4,
                 "d": {
                     "guild_id": guild_id,
                     "channel_id": channel_id,
                     "self_mute": True,
                     "self_deaf": True,
-                    "self_stream": False,
+                    "self_stream": True,
                     "self_video": False
                 }
             }
-            self.ws.send(json.dumps(video_payload))
+            self.ws.send(json.dumps(live_payload))
+            print(f"[+] Fake live started in {channel_id}")
         except:
             pass
 
@@ -768,7 +763,12 @@ class DiscordGateway:
                     channel_id = self.pending_live["channel_id"]
                     self.pending_live = None
                     if self.fakelive:
-                        self.start_fake_live(guild_id, channel_id)
+                        t = threading.Thread(
+                            target=self._delayed_fake_live,
+                            args=(guild_id, channel_id),
+                            daemon=True
+                        )
+                        t.start()
                 if not d.get("channel_id") and self.current_voice:
                     print("[*] Left voice channel.")
                     self.current_voice = None
@@ -963,7 +963,7 @@ def main():
     activity = None
     sc = None
     asset_cache = {}
-    start_time = int(time.time() * 1000) - 3636363636
+    start_time = int(time.time() * 1000) - 67363636363
 
     if stream_enabled:
         if not app_id:
