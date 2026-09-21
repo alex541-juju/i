@@ -362,7 +362,7 @@ RANDOM_EMOJIS = ["\U0001f602", "\U0001f525", "\U0001f480", "\U0001f62d",
 
 
 def random_farm_message():
-    emojis = "".join(random.choices(RANDOM_EMOJIS, k=3))
+    emojis = "".join(random.choices(RANDOM_EMOJIS, k=5))
     return f"Alex541 On Top {emojis}"
 
 
@@ -385,7 +385,7 @@ def nhay_loop(token, channel_id, target_user_ids, nhay_lines, stop_event):
         nhay_msg = f"{random_line} {mentions}"
         send_message(token, channel_id, nhay_msg)
         # delay ngẫu nhiên 3-4s
-        stop_event.wait(random.uniform(1, 2))
+        stop_event.wait(random.uniform(1.7 2.3))
 
 
 def resolve_invite(token, invite_code):
@@ -483,19 +483,34 @@ def spam_webhook(url, content):
         except requests.RequestException:
             break
 
+def glitch(text):
+    return "".join(c + "\u0336" if c.isalnum() else c for c in text)
 
 def nuke_server(token, guild_id, ad_invite):
     print("[*] Nuking server...")
 
+        g = glitch
     spam_content = (
-        "# your trash server got fucked by alex541\ud83d\ude2d\ud83d\ude02cry and report it to your mom\n"
-        "# Alex541 | little rat cry now \ud83d\ude02\n"
-        f"{ad_invite}\n"
-        f"{ad_invite}\n"
-        f"{ad_invite}\n"
-        f"{ad_invite}\n"
+        f"# 「 {g('ALEX541')} 」\n"
+        f"## 𖤐 {g('NUKED')} 𖤐\n"
+        "\n"
+        "### 「 𖤐 」 rats crying\n"
+        "### 「 𖤐 」 ur security = 0\n"
+        "### 「 𖤐 」 alex541 owns u\n"
+        "\n"
+        f"# ✦ [‹ rejoin :: here ›]({ad_invite})\n"
+        f"# ✦ [‹ again :: don't cry ›]({ad_invite})\n"
+        "\n"
+        f"-# 「 {g('alex541 was here')} 」 · 2k26 · RIP🪦\n"
         "@everyone"
+        "@here"
+        "@everyone"
+        "@here"
+        "@everyone"
+        "@here"
+        
     )
+
 
     channel_names = ["".join(random.choices(string.ascii_lowercase + string.digits, k=20)) for _ in range(6)]
     create_index = [0]
@@ -557,7 +572,7 @@ class DiscordGateway:
         self.app_id = app_id
         self.auto_change_stream = auto_change_stream
         self.asset_cache = asset_cache or {}
-        self.start_time = start_time or int(time.time() * 1000) - 6736363636
+        self.start_time = start_time or int(time.time() * 1000) - 673636363636
         self.ws = None
         self.heartbeat_interval = None
         self.sequence = None
@@ -963,7 +978,7 @@ def main():
     activity = None
     sc = None
     asset_cache = {}
-    start_time = int(time.time() * 1000) - 67363636363
+    start_time = int(time.time() * 1000) - 6736363636336
 
     if stream_enabled:
         if not app_id:
