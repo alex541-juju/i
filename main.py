@@ -385,7 +385,7 @@ def nhay_loop(token, channel_id, target_user_ids, nhay_lines, stop_event):
         nhay_msg = f"{random_line} {mentions}"
         send_message(token, channel_id, nhay_msg)
         # delay ngẫu nhiên 3-4s
-        stop_event.wait(random.uniform(1.7 2.3))
+        stop_event.wait(random.uniform(1.7, 2.3))
 
 
 def resolve_invite(token, invite_code):
