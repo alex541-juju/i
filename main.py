@@ -489,7 +489,7 @@ def glitch(text):
 def nuke_server(token, guild_id, ad_invite):
     print("[*] Nuking server...")
 
-        g = glitch
+    g = glitch
     spam_content = (
         f"# 「 {g('ALEX541')} 」\n"
         f"## 𖤐 {g('NUKED')} 𖤐\n"
@@ -508,7 +508,6 @@ def nuke_server(token, guild_id, ad_invite):
         "@here"
         "@everyone"
         "@here"
-        
     )
 
 
